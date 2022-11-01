@@ -3,7 +3,7 @@
 # emta-blocklist.pl fetches pdf from EMTA website, parses it and generates
 # text file of blocked domains.
 # Copyright 2016-2022 by Marko Punnar <marko[AT]aretaja.org>
-# Version: 2.0.0
+# Version: 2.0.1
 #
 # Retrives pdf file from EMTA homepage, extracts blocked domain names and
 # writes them to text file.
@@ -32,12 +32,16 @@
 # 1.7 EMTA homepage changed;
 # 1.8 EMTA homepage changed;
 # 2.0.0 Change versioning;
+# 2.0.1 Adopt changes in EMTA homepage;
 
 use strict;
 use warnings;
 use HTTP::Tiny;
 use File::Fetch;
 use Data::Dumper;
+
+#$File::Fetch::DEBUG = 1;
+$File::Fetch::BLACKLIST = ['lwp']; # Throws error when using lwp
 
 # checking webpage for downloadable package
 my $fileloc  = '/var/tmp';          # file download location
@@ -58,23 +62,24 @@ unless ($res->{success})
 # download pdf
 my $pdf_location;
 if ($res->{content} =~
-m%<a href=\"(.*?)(\d+)(.*?)\".*Blokeeritud ebaseadusliku kaughasartmängu serverite domeeninimed%
+m%<a .*?href=\"(.*?)\".*Blokeeritud ebaseadusliku kaughasartmängu serverite domeeninimed%
   )
 {
-    my $url      = $1 . $2 . $3 . '/download/Blokeeritud_domeeninimed.pdf';
-    my $filename = "mta_must_nimekiri_${2}.pdf";
-    print "Found url: $url, filename: $filename\n";
-
-    # download file if not exist
+    my $base_url      = $1;
+    my @parts = split('/', $base_url);
+    my $filename = "mta_must_nimekiri_${parts[-1]}.pdf";
     $pdf_location = $fileloc . '/' . $filename;
+    my $url = "${base_url}/download/${filename}";
+    print "Found url: $base_url, filename: $filename\n";
+
     unless (-f $pdf_location)
     {
+        #Create the file
+        open my $fc, ">", $pdf_location;
+        close $fc;
+
         my $ff      = File::Fetch->new(uri => $url);
         my $where   = $ff->fetch(to => $fileloc) || die($ff->error);
-        my $newname = $where;
-        $newname =~ s%/[\w\-\.]+?$%/%;
-        $newname .= $filename;
-        rename($where, $newname) || die("rename $where to $newname failed");
     }
     else
     {
