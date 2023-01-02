@@ -2,8 +2,8 @@
 #
 # emta-blocklist.pl fetches pdf from EMTA website, parses it and generates
 # text file of blocked domains.
-# Copyright 2016-2022 by Marko Punnar <marko[AT]aretaja.org>
-# Version: 2.0.1
+# Copyright 2016-2023 by Marko Punnar <marko[AT]aretaja.org>
+# Version: 2.0.2
 #
 # Retrives pdf file from EMTA homepage, extracts blocked domain names and
 # writes them to text file.
@@ -33,6 +33,7 @@
 # 1.8 EMTA homepage changed;
 # 2.0.0 Change versioning;
 # 2.0.1 Adopt changes in EMTA homepage;
+# 2.0.2 We need to always download the file because filename not changes anymore on content change
 
 use strict;
 use warnings;
@@ -41,10 +42,10 @@ use File::Fetch;
 use Data::Dumper;
 
 #$File::Fetch::DEBUG = 1;
-$File::Fetch::BLACKLIST = ['lwp']; # Throws error when using lwp
+$File::Fetch::BLACKLIST = ['lwp'];    # Throws error when using lwp
 
 # checking webpage for downloadable package
-my $fileloc  = '/var/tmp';          # file download location
+my $fileloc  = '/var/tmp';            # file download location
 my $file_out = 'emta_block.txt';
 my $websess  = HTTP::Tiny->new();
 my $res      = $websess->get(
@@ -65,26 +66,19 @@ if ($res->{content} =~
 m%<a .*?href=\"(.*?)\".*Blokeeritud ebaseadusliku kaughasartmängu serverite domeeninimed%
   )
 {
-    my $base_url      = $1;
-    my @parts = split('/', $base_url);
+    my $base_url = $1;
+    my @parts    = split('/', $base_url);
     my $filename = "mta_must_nimekiri_${parts[-1]}.pdf";
     $pdf_location = $fileloc . '/' . $filename;
     my $url = "${base_url}/download/${filename}";
     print "Found url: $base_url, filename: $filename\n";
 
-    unless (-f $pdf_location)
-    {
-        #Create the file
-        open my $fc, ">", $pdf_location;
-        close $fc;
+    #Create the file
+    open my $fc, ">", $pdf_location;
+    close $fc;
 
-        my $ff      = File::Fetch->new(uri => $url);
-        my $where   = $ff->fetch(to => $fileloc) || die($ff->error);
-    }
-    else
-    {
-        print "File $filename allready exists. Not downloading\n";
-    }
+    my $ff    = File::Fetch->new(uri => $url);
+    my $where = $ff->fetch(to => $fileloc) || die($ff->error);
 }
 else
 {
