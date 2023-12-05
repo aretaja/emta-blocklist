@@ -3,7 +3,7 @@
 # emta-blocklist.pl fetches pdf from EMTA website, parses it and generates
 # text file of blocked domains.
 # Copyright 2016-2023 by Marko Punnar <marko[AT]aretaja.org>
-# Version: 2.0.2
+# Version: 2.1.0
 #
 # Retrives pdf file from EMTA homepage, extracts blocked domain names and
 # writes them to text file.
@@ -34,6 +34,7 @@
 # 2.0.0 Change versioning;
 # 2.0.1 Adopt changes in EMTA homepage;
 # 2.0.2 We need to always download the file because filename not changes anymore on content change
+# 2.1.0 Adopt changes in EMTA provided pdf
 
 use strict;
 use warnings;
@@ -90,11 +91,21 @@ else
 my @lines = qx(/usr/bin/pdftotext -layout $pdf_location -);
 my $domains;
 
-foreach (@lines)
+foreach my $l (@lines)
 {
-    if ($_ =~ m/^\s*\d+\s+([\w\d\-\.]+)\s*$/)
+    my @dom;
+    if ($l =~ m/^\s*\d+\s+([\w\d\-\.]+)\s+\d+\s+([\w\d\-\.]+)\s*$/)
     {
-        my $domain = lc($1);
+        push(@dom, ($1, $2));
+    }
+    elsif ($l =~ m/^\s*\d+\s+([\w\d\-\.]+)\s*$/)
+    {
+        push(@dom, $1);
+    }
+
+    foreach (@dom)
+    {
+        my $domain = lc($_);
         $domains->{$domain} = 1;
     }
 }
